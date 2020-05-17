@@ -25,13 +25,27 @@ import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import java.awt.*;
+import java.awt.Font.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import javafx.scene.web.WebEngine;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
+import javafx.stage.Stage;
 import java.io.File;
 import java.lang.ref.WeakReference;
+import javafx.application.Platform;
+import javafx.embed.swing.JFXPanel;
+import javafx.scene.Group;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 
 import static com.skcraft.launcher.util.SharedLocale.tr;
 
@@ -46,10 +60,12 @@ public class LauncherFrame extends JFrame {
     @Getter
     private final InstanceTable instancesTable = new InstanceTable();
     private final InstanceTableModel instancesModel;
+
     @Getter
     private final JScrollPane instanceScroll = new JScrollPane(instancesTable);
-    private WebpagePanel webView;
+
     private JSplitPane splitPane;
+    WebView webView;
     private final JButton launchButton = new JButton(SharedLocale.tr("launcher.launch"));
     private final JButton refreshButton = new JButton(SharedLocale.tr("launcher.checkForUpdates"));
     private final JButton optionsButton = new JButton(SharedLocale.tr("launcher.options"));
@@ -85,10 +101,26 @@ public class LauncherFrame extends JFrame {
 
     private void initComponents() {
         JPanel container = createContainerPanel();
+
+
+        final JFXPanel jfxPanel = new JFXPanel();
+
+        // Creation of scene and future interactions with JFXPanel
+        // should take place on the JavaFX Application Thread
+        Platform.runLater(new Runnable() {
+        @Override
+        public void run() {
+          webView = new WebView();
+          jfxPanel.setScene(new Scene(webView));
+          webView.getEngine().load(launcher.getNewsURL().toString());
+        }
+   });
+
+
         container.setLayout(new MigLayout("fill, insets dialog", "[][]push[][]", "[grow][]"));
 
-        webView = createNewsPanel();
-        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, instanceScroll, webView);
+
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, instanceScroll, jfxPanel);
         selfUpdateButton.setVisible(launcher.getUpdateManager().getPendingUpdate());
 
         launcher.getUpdateManager().addPropertyChangeListener(new PropertyChangeListener() {
@@ -131,9 +163,14 @@ public class LauncherFrame extends JFrame {
         refreshButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+              Platform.runLater(new Runnable() {
+              @Override
+              public void run() {
+                webView.getEngine().load(launcher.getNewsURL().toString());
+              }
+         });
                 loadInstances();
                 launcher.getUpdateManager().checkForUpdate();
-                webView.browse(launcher.getNewsURL(), false);
             }
         });
 
